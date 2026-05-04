@@ -6,8 +6,6 @@ data class CatBreedDto(
     val origin: String?,
     val temperament: String?,
     val description: String?,
-    @SerializedName("life_span")
     val lifeSpan: String?,
-    @SerializedName("wikipedia_url")
     val wikipediaUrl: String?
 )

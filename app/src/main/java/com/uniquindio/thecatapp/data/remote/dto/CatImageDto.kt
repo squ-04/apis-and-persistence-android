@@ -5,7 +5,6 @@ data class CatImageDto(
     val url: String,
     val width: Int?,
     val height: Int?,
-    @SerializedName("mime_type")
     val mimeType: String?,
     val breeds: List<CatBreedDto> = emptyList(),
     val categories: List<CatCategoryDto> = emptyList()
