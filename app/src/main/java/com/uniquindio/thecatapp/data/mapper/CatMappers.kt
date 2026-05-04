@@ -10,15 +10,18 @@ import com.uniquindio.thecatapp.domain.model.Cat
 import com.uniquindio.thecatapp.domain.model.CatBreed
 import com.uniquindio.thecatapp.domain.model.CatCategory
 
-fun CatImageDto.toEntity(queryKey: String, page: Int, itemOrder: Int, updatedAt: Long): CatImageEntity {
+fun CatImageDto.toEntityOrNull(queryKey: String, page: Int, itemOrder: Int, updatedAt: Long): CatImageEntity? {
+    val safeId = id?.takeIf { it.isNotBlank() } ?: return null
+    val safeUrl = url?.takeIf { it.isNotBlank() } ?: return null
+
     return CatImageEntity(
         queryKey = queryKey,
         page = page,
         itemOrder = itemOrder,
-        catId = id,
-        url = url,
-        breedId = breeds.firstOrNull()?.id,
-        categoryId = categories.firstOrNull()?.id,
+        catId = safeId,
+        url = safeUrl,
+        breedId = breeds.orEmpty().firstOrNull()?.id,
+        categoryId = categories.orEmpty().firstOrNull()?.id,
         updatedAt = updatedAt
     )
 }
@@ -32,10 +35,13 @@ fun CatImageEntity.toDomain(): Cat {
     )
 }
 
-fun CatBreedDto.toDomain(): CatBreed {
+fun CatBreedDto.toDomainOrNull(): CatBreed? {
+    val safeId = id?.takeIf { it.isNotBlank() } ?: return null
+    val safeName = name?.takeIf { it.isNotBlank() } ?: return null
+
     return CatBreed(
-        id = id,
-        name = name
+        id = safeId,
+        name = safeName
     )
 }
 
@@ -54,10 +60,13 @@ fun BreedEntity.toDomain(): CatBreed {
     )
 }
 
-fun CatCategoryDto.toDomain(): CatCategory {
+fun CatCategoryDto.toDomainOrNull(): CatCategory? {
+    val safeId = id ?: return null
+    val safeName = name?.takeIf { it.isNotBlank() } ?: return null
+
     return CatCategory(
-        id = id,
-        name = name
+        id = safeId,
+        name = safeName
     )
 }
 

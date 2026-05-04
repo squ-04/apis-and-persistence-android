@@ -4,7 +4,9 @@ import com.uniquindio.thecatapp.data.local.dao.BreedDao
 import com.uniquindio.thecatapp.data.local.dao.CatImageDao
 import com.uniquindio.thecatapp.data.local.dao.CategoryDao
 import com.uniquindio.thecatapp.data.mapper.toDomain
+import com.uniquindio.thecatapp.data.mapper.toDomainOrNull
 import com.uniquindio.thecatapp.data.mapper.toEntity
+import com.uniquindio.thecatapp.data.mapper.toEntityOrNull
 import com.uniquindio.thecatapp.data.remote.CatApiService
 import com.uniquindio.thecatapp.domain.model.Cat
 import com.uniquindio.thecatapp.domain.model.CatBreed
@@ -38,8 +40,8 @@ class CatRepositoryImpl @Inject constructor(
 				categoryIds = categoryId?.toString()
 			)
 
-			val entities = remote.mapIndexed { index, dto ->
-				dto.toEntity(
+			val entities = remote.mapIndexedNotNull { index, dto ->
+				dto.toEntityOrNull(
 					queryKey = queryKey,
 					page = page,
 					itemOrder = index,
@@ -66,7 +68,7 @@ class CatRepositoryImpl @Inject constructor(
 	override suspend fun getBreeds(): List<CatBreed> {
 		return runCatching {
 			val now = System.currentTimeMillis()
-			val remote = apiService.getBreeds().map { it.toDomain() }
+			val remote = apiService.getBreeds().mapNotNull { it.toDomainOrNull() }
 
 			breedDao.deleteAll()
 			if (remote.isNotEmpty()) {
@@ -82,7 +84,7 @@ class CatRepositoryImpl @Inject constructor(
 	override suspend fun getCategories(): List<CatCategory> {
 		return runCatching {
 			val now = System.currentTimeMillis()
-			val remote = apiService.getCategories().map { it.toDomain() }
+			val remote = apiService.getCategories().mapNotNull { it.toDomainOrNull() }
 
 			categoryDao.deleteAll()
 			if (remote.isNotEmpty()) {
