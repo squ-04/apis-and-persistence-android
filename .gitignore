@@ -1,0 +1,126 @@
+# =========================
+# Android / Gradle
+# =========================
+
+*.iml
+.gradle/
+build/
+*/build/
+
+local.properties
+/.idea/caches/
+/.idea/libraries/
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+
+.externalNativeBuild/
+.cxx/
+captures/
+
+# =========================
+# Archivos generados por Android Studio
+# =========================
+
+.idea/deploymentTargetDropDown.xml
+.idea/misc.xml
+.idea/runConfigurations/
+.idea/shelf/
+
+# =========================
+# macOS
+# =========================
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# =========================
+# Windows
+# =========================
+
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# =========================
+# Linux
+# =========================
+
+*~
+.directory
+
+# =========================
+# Logs
+# =========================
+
+*.log
+
+# =========================
+# APK / AAB generados
+# =========================
+
+*.apk
+*.aab
+*.ap_
+output-metadata.json
+
+# =========================
+# Firmas / Keystores
+# =========================
+# No subir llaves de firma al repositorio
+
+*.jks
+*.keystore
+keystore.properties
+
+# =========================
+# Variables locales / secretos
+# =========================
+# Útil si manejas API keys, URLs privadas o tokens
+
+.env
+.env.*
+secrets.properties
+apikey.properties
+
+# =========================
+# Firebase / Google Services
+# =========================
+# Si tu google-services.json contiene configuración sensible
+# o no quieres compartirlo en el repo, ignóralo.
+# Si trabajas en equipo, evalúa si debe versionarse o no.
+
+google-services.json
+
+# =========================
+# Kotlin / KSP / KAPT
+# =========================
+
+.kotlin/
+kapt/
+ksp/
+
+# =========================
+# Room schemas
+# =========================
+# Ignóralo solo si no necesitas versionar los esquemas de Room.
+# Si usas migraciones, puede ser mejor versionarlos.
+
+# schemas/
+
+# =========================
+# Testing / Coverage
+# =========================
+
+/coverage/
+*.ec
+
+# =========================
+# ProGuard / R8
+# =========================
+
+mapping.txt
+seeds.txt
+usage.txt
