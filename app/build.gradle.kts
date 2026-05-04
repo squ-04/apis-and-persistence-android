@@ -21,6 +21,10 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        val catApiKey = (project.findProperty("CAT_API_KEY") as String?) ?: ""
+        buildConfigField("String", "CAT_API_BASE_URL", "\"https://api.thecatapi.com/v1/\"")
+        buildConfigField("String", "CAT_API_KEY", "\"$catApiKey\"")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
