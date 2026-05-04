@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.uniquindio.thecatapp.data.local.CatDatabase
 import com.uniquindio.thecatapp.data.local.dao.BreedDao
+import com.uniquindio.thecatapp.data.local.dao.CatDetailDao
 import com.uniquindio.thecatapp.data.local.dao.CatImageDao
 import com.uniquindio.thecatapp.data.local.dao.CategoryDao
 import dagger.Module
@@ -31,6 +32,9 @@ object DatabaseModule {
 
 	@Provides
 	fun provideCatImageDao(database: CatDatabase): CatImageDao = database.catImageDao()
+
+	@Provides
+	fun provideCatDetailDao(database: CatDatabase): CatDetailDao = database.catDetailDao()
 
 	@Provides
 	fun provideBreedDao(database: CatDatabase): BreedDao = database.breedDao()

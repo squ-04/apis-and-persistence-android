@@ -1,16 +1,20 @@
 package com.uniquindio.thecatapp.data.repository
 
 import com.uniquindio.thecatapp.data.local.dao.BreedDao
+import com.uniquindio.thecatapp.data.local.dao.CatDetailDao
 import com.uniquindio.thecatapp.data.local.dao.CatImageDao
 import com.uniquindio.thecatapp.data.local.dao.CategoryDao
 import com.uniquindio.thecatapp.data.mapper.toDomain
+import com.uniquindio.thecatapp.data.mapper.toDomainImage
 import com.uniquindio.thecatapp.data.mapper.toDomainOrNull
 import com.uniquindio.thecatapp.data.mapper.toEntity
+import com.uniquindio.thecatapp.data.mapper.toDetailEntityOrNull
 import com.uniquindio.thecatapp.data.mapper.toEntityOrNull
 import com.uniquindio.thecatapp.data.remote.CatApiService
 import com.uniquindio.thecatapp.domain.model.Cat
 import com.uniquindio.thecatapp.domain.model.CatBreed
 import com.uniquindio.thecatapp.domain.model.CatCategory
+import com.uniquindio.thecatapp.domain.model.CatImage
 import com.uniquindio.thecatapp.domain.repository.CatRepository
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -19,6 +23,7 @@ import javax.inject.Singleton
 class CatRepositoryImpl @Inject constructor(
 	private val apiService: CatApiService,
 	private val catImageDao: CatImageDao,
+	private val catDetailDao: CatDetailDao,
 	private val breedDao: BreedDao,
 	private val categoryDao: CategoryDao
 ) : CatRepository {
@@ -94,6 +99,25 @@ class CatRepositoryImpl @Inject constructor(
 			remote
 		}.getOrElse {
 			categoryDao.getAll().map { it.toDomain() }
+		}
+	}
+
+	override suspend fun getCatImageById(catId: String): Result<CatImage> {
+		return runCatching {
+			val now = System.currentTimeMillis()
+			val remote = apiService.getImageById(catId)
+			val entity = remote.toDetailEntityOrNull(updatedAt = now)
+				?: throw IllegalStateException("El detalle de la imagen no contiene datos validos")
+
+			catDetailDao.upsert(entity)
+			entity.toDomainImage()
+		}.recoverCatching { networkError ->
+			val cached = catDetailDao.getById(catId)
+			if (cached != null) {
+				cached.toDomainImage()
+			} else {
+				throw networkError
+			}
 		}
 	}
 

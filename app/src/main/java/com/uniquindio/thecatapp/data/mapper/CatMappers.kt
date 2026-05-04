@@ -1,6 +1,7 @@
 package com.uniquindio.thecatapp.data.mapper
 
 import com.uniquindio.thecatapp.data.local.entity.BreedEntity
+import com.uniquindio.thecatapp.data.local.entity.CatDetailEntity
 import com.uniquindio.thecatapp.data.local.entity.CatImageEntity
 import com.uniquindio.thecatapp.data.local.entity.CategoryEntity
 import com.uniquindio.thecatapp.data.remote.dto.CatBreedDto
@@ -9,6 +10,7 @@ import com.uniquindio.thecatapp.data.remote.dto.CatImageDto
 import com.uniquindio.thecatapp.domain.model.Cat
 import com.uniquindio.thecatapp.domain.model.CatBreed
 import com.uniquindio.thecatapp.domain.model.CatCategory
+import com.uniquindio.thecatapp.domain.model.CatImage
 
 fun CatImageDto.toEntityOrNull(queryKey: String, page: Int, itemOrder: Int, updatedAt: Long): CatImageEntity? {
     val safeId = id?.takeIf { it.isNotBlank() } ?: return null
@@ -82,6 +84,40 @@ fun CategoryEntity.toDomain(): CatCategory {
     return CatCategory(
         id = id,
         name = name
+    )
+}
+
+fun CatImageDto.toDetailEntityOrNull(updatedAt: Long): CatDetailEntity? {
+    val safeId = id?.takeIf { it.isNotBlank() } ?: return null
+    val safeUrl = url?.takeIf { it.isNotBlank() } ?: return null
+    val firstBreed = breeds.orEmpty().firstOrNull()
+    val firstCategory = categories.orEmpty().firstOrNull()
+
+    return CatDetailEntity(
+        catId = safeId,
+        url = safeUrl,
+        width = width,
+        height = height,
+        mimeType = mimeType,
+        breedId = firstBreed?.id,
+        breedName = firstBreed?.name,
+        categoryId = firstCategory?.id,
+        categoryName = firstCategory?.name,
+        updatedAt = updatedAt
+    )
+}
+
+fun CatDetailEntity.toDomainImage(): CatImage {
+    return CatImage(
+        id = catId,
+        url = url,
+        width = width,
+        height = height,
+        mimeType = mimeType,
+        breedId = breedId,
+        breedName = breedName,
+        categoryId = categoryId,
+        categoryName = categoryName
     )
 }
 
