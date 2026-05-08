@@ -41,4 +41,7 @@ object DatabaseModule {
 
 	@Provides
 	fun provideCategoryDao(database: CatDatabase): CategoryDao = database.categoryDao()
+
+	@Provides
+	fun provideFavoriteDao(database: CatDatabase): com.uniquindio.thecatapp.data.local.dao.FavoriteDao = database.favoriteDao()
 }

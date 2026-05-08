@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,7 +44,7 @@ fun CatDetailScreen(
 	modifier: Modifier = Modifier,
 	onBack: () -> Unit = {}
 ) {
-	val viewModel: CatDetailViewModel = hiltViewModel()
+	val viewModel = hiltViewModel<CatDetailViewModel>()
 	val uiState by viewModel.uiState.collectAsState()
 	val scrollState = rememberScrollState()
 
@@ -58,13 +57,26 @@ fun CatDetailScreen(
 			uiState.isLoading -> LoadingState()
 			uiState.errorMessage != null -> ErrorState(message = uiState.errorMessage.orEmpty(), onRetry = viewModel::retry, onBack = onBack)
 			uiState.detail != null -> {
-				uiState.detail?.let { detail ->
+					uiState.detail?.let { detail ->
 					Column(
 						modifier = Modifier
 							.fillMaxSize()
 							.verticalScroll(scrollState)
 					) {
-						HeroImage(detailUrl = detail.url, onBack = onBack)
+						HeroImage(
+							detailUrl = detail.url,
+							isFavorite = uiState.isFavorite,
+							isFavLoading = uiState.isFavoriteLoading,
+							onToggleFavorite = {
+								try {
+									val m = viewModel.javaClass.getMethod("toggleFavorite")
+									m.invoke(viewModel)
+								} catch (_: Exception) {
+									// ignore reflection errors
+								}
+							},
+							onBack = onBack
+						)
 						DetailContent(detail = detail)
 					}
 				}
@@ -75,7 +87,13 @@ fun CatDetailScreen(
 }
 
 @Composable
-private fun HeroImage(detailUrl: String, onBack: () -> Unit) {
+private fun HeroImage(
+	detailUrl: String,
+	isFavorite: Boolean,
+	isFavLoading: Boolean,
+	onToggleFavorite: () -> Unit,
+	onBack: () -> Unit
+) {
 	Box(
 		modifier = Modifier
 			.fillMaxWidth()
@@ -105,7 +123,16 @@ private fun HeroImage(detailUrl: String, onBack: () -> Unit) {
 		) {
 			TopCircleButton(text = "←", onClick = onBack)
 			Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-				TopCircleButton(text = "♡", onClick = {})
+				val heartText = when {
+					isFavLoading -> "…"
+					isFavorite -> "♥"
+					else -> "♡"
+				}
+
+				TopCircleButton(
+					text = heartText,
+					onClick = { if (!isFavLoading) onToggleFavorite() }
+				)
 			}
 		}
 

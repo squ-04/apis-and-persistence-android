@@ -12,8 +12,8 @@ import com.uniquindio.thecatapp.data.local.entity.CatImageEntity
 import com.uniquindio.thecatapp.data.local.entity.CategoryEntity
 
 @Database(
-	entities = [CatImageEntity::class, CatDetailEntity::class, BreedEntity::class, CategoryEntity::class],
-	version = 2,
+	entities = [CatImageEntity::class, CatDetailEntity::class, BreedEntity::class, CategoryEntity::class, com.uniquindio.thecatapp.data.local.entity.FavoriteEntity::class],
+	version = 3,
 	exportSchema = false
 )
 abstract class CatDatabase : RoomDatabase() {
@@ -25,4 +25,6 @@ abstract class CatDatabase : RoomDatabase() {
 	abstract fun breedDao(): BreedDao
 
 	abstract fun categoryDao(): CategoryDao
+
+	abstract fun favoriteDao(): com.uniquindio.thecatapp.data.local.dao.FavoriteDao
 }

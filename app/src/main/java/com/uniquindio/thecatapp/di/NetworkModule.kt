@@ -46,7 +46,8 @@ object NetworkModule {
 	@Singleton
 	fun provideLoggingInterceptor(): HttpLoggingInterceptor {
 		return HttpLoggingInterceptor().apply {
-			level = HttpLoggingInterceptor.Level.BASIC
+			// Use BODY temporarily to help debug authentication/headers. Change back to BASIC in production.
+			level = HttpLoggingInterceptor.Level.BODY
 		}
 	}
 

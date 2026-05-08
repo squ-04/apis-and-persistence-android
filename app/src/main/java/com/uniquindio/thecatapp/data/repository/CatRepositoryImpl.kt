@@ -25,7 +25,8 @@ class CatRepositoryImpl @Inject constructor(
 	private val catImageDao: CatImageDao,
 	private val catDetailDao: CatDetailDao,
 	private val breedDao: BreedDao,
-	private val categoryDao: CategoryDao
+	private val categoryDao: CategoryDao,
+	private val favoriteDao: com.uniquindio.thecatapp.data.local.dao.FavoriteDao
 ) : CatRepository {
 
 	override suspend fun getCatImages(
@@ -125,5 +126,38 @@ class CatRepositoryImpl @Inject constructor(
 		val breedPart = breedId ?: "all"
 		val categoryPart = categoryId?.toString() ?: "all"
 		return "$breedPart|$categoryPart"
+	}
+
+	override suspend fun addFavorite(imageId: String): Result<Int> {
+		return runCatching {
+			val response = apiService.addFavorite(com.uniquindio.thecatapp.data.remote.FavouriteRequestDto(image_id = imageId))
+			val favId = response.id ?: throw IllegalStateException("No se recibió id de favorito")
+			val entity = com.uniquindio.thecatapp.data.local.entity.FavoriteEntity(id = favId, imageId = imageId, createdAt = System.currentTimeMillis())
+			favoriteDao.insert(entity)
+			favId
+		}.recoverCatching { networkError ->
+			val existing = favoriteDao.getByImageId(imageId)
+			if (existing != null) {
+				existing.id
+			} else {
+				throw networkError
+			}
+		}
+	}
+
+	override suspend fun removeFavorite(favouriteId: Int): Result<Unit> {
+		return try {
+			apiService.removeFavorite(favouriteId)
+			favoriteDao.deleteById(favouriteId)
+			Result.success(Unit)
+		} catch (_: Exception) {
+			// intentar eliminar localmente aunque falle la red
+			runCatching { favoriteDao.deleteById(favouriteId) }
+			Result.success(Unit)
+		}
+	}
+
+	override suspend fun getFavoriteIdForImage(imageId: String): Int? {
+		return favoriteDao.getByImageId(imageId)?.id
 	}
 }
