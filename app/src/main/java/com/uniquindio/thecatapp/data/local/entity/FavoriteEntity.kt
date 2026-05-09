@@ -1,16 +1,19 @@
-    val createdAt: Long
 package com.uniquindio.thecatapp.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+enum class FavoriteStatus {
+    SYNCED,
+    PENDING_ADD,
+    PENDING_DELETE
+}
+
 @Entity(tableName = "favorites")
+data class FavoriteEntity(
     @PrimaryKey(autoGenerate = true) val localId: Long = 0L,
     val serverId: Int? = null,
-    @PrimaryKey val id: Int,
-    val status: String, // PENDING_ADD, SYNCED, PENDING_DELETE
-    val createdAt: Long,
-    val updatedAt: Long
-    val createdAt: Long
+    val imageId: String,
+    val status: FavoriteStatus = FavoriteStatus.SYNCED,
+    val createdAt: Long = System.currentTimeMillis()
 )
-

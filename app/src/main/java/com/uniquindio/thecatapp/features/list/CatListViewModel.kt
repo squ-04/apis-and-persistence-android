@@ -56,17 +56,25 @@ class CatListViewModel @Inject constructor(
                 ).onSuccess { newCats ->
                     _uiState.update {
                         it.copy(
-                            cats = it.cats + newCats,
-                            isLoading = false
+                            cats = if (reset) newCats else it.cats + newCats,
+                            isLoading = false,
+                            errorMessage = null
                         )
                     }
-                    currentPage++
+                    if (newCats.isNotEmpty()) {
+                        currentPage++
+                    }
                 }.onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = error.message ?: "Error al cargar gatos"
-                        )
+                    // Si ya tenemos gatos cargados, no mostramos el error de red como un banner invasivo
+                    if (_uiState.value.cats.isNotEmpty()) {
+                        _uiState.update { it.copy(isLoading = false) }
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = error.message ?: "Error al cargar gatos"
+                            )
+                        }
                     }
                 }
             } finally {

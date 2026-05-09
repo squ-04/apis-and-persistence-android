@@ -20,33 +20,31 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Badge
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.snapshotFlow
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.uniquindio.thecatapp.R
+import com.uniquindio.thecatapp.domain.model.Cat
+import com.uniquindio.thecatapp.domain.model.CatBreed
+import com.uniquindio.thecatapp.domain.model.CatCategory
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import com.uniquindio.thecatapp.domain.model.Cat
+import coil3.request.crossfade
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CatListScreen(
     modifier: Modifier = Modifier,
@@ -55,6 +53,9 @@ fun CatListScreen(
     val viewModel: CatListViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
     val gridState = rememberLazyGridState()
+
+    var showBreedPicker by remember { mutableStateOf(false) }
+    var showCategoryPicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(gridState) {
         snapshotFlow {
@@ -66,6 +67,36 @@ fun CatListScreen(
                 viewModel.loadCats()
             }
         }
+    }
+
+    if (showBreedPicker) {
+        FilterBottomSheet(
+            title = stringResource(R.string.select_breed),
+            items = uiState.breeds,
+            selectedId = uiState.selectedBreedId,
+            onItemSelected = { breed ->
+                viewModel.onBreedSelected(breed?.id)
+                showBreedPicker = false
+            },
+            onDismiss = { showBreedPicker = false },
+            itemLabel = { it.name },
+            itemId = { it.id }
+        )
+    }
+
+    if (showCategoryPicker) {
+        FilterBottomSheet(
+            title = stringResource(R.string.select_category),
+            items = uiState.categories,
+            selectedId = uiState.selectedCategoryId,
+            onItemSelected = { category ->
+                viewModel.onCategorySelected(category?.id)
+                showCategoryPicker = false
+            },
+            onDismiss = { showCategoryPicker = false },
+            itemLabel = { it.name },
+            itemId = { it.id }
+        )
     }
 
     Column(
@@ -81,6 +112,8 @@ fun CatListScreen(
         FilterSummary(
             selectedBreed = uiState.breeds.find { it.id == uiState.selectedBreedId }?.name,
             selectedCategory = uiState.categories.find { it.id == uiState.selectedCategoryId }?.name,
+            onBreedClick = { showBreedPicker = true },
+            onCategoryClick = { showCategoryPicker = true },
             onClearFilters = {
                 viewModel.onBreedSelected(null)
                 viewModel.onCategorySelected(null)
@@ -90,7 +123,7 @@ fun CatListScreen(
         if (uiState.errorMessage != null) {
             Spacer(modifier = Modifier.height(12.dp))
             ErrorBanner(
-                message = uiState.errorMessage.orEmpty(),
+                message = uiState.errorMessage ?: stringResource(R.string.error_loading_cats),
                 onRetry = { viewModel.loadCats(reset = true) }
             )
         }
@@ -104,12 +137,12 @@ fun CatListScreen(
         ) {
             Column {
                 Text(
-                    text = "Gatos",
+                    text = stringResource(R.string.label_gatos),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = if (uiState.isOnline) "Mostrando imágenes reales desde la API" else "Mostrando contenido guardado localmente",
+                    text = if (uiState.isOnline) stringResource(R.string.showing_api) else stringResource(R.string.showing_local),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -158,6 +191,64 @@ fun CatListScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun <T> FilterBottomSheet(
+    title: String,
+    items: List<T>,
+    selectedId: Any?,
+    onItemSelected: (T?) -> Unit,
+    onDismiss: () -> Unit,
+    itemLabel: (T) -> String,
+    itemId: (T) -> Any
+) {
+    val sheetState = rememberModalBottomSheetState()
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(16.dp)
+            )
+
+            LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                item {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.filter_all_m)) },
+                        trailingContent = {
+                            if (selectedId == null) {
+                                Icon(Icons.Default.Check, contentDescription = null)
+                            }
+                        },
+                        modifier = Modifier.clickable { onItemSelected(null) }
+                    )
+                }
+                items(items) { item ->
+                    val isSelected = itemId(item) == selectedId
+                    ListItem(
+                        headlineContent = { Text(itemLabel(item)) },
+                        trailingContent = {
+                            if (isSelected) {
+                                Icon(Icons.Default.Check, contentDescription = null)
+                            }
+                        },
+                        modifier = Modifier.clickable { onItemSelected(item) }
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun HeaderSection(
     isOnline: Boolean,
@@ -176,13 +267,13 @@ private fun HeaderSection(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Cat Explorer",
+                    text = stringResource(R.string.app_name),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.ExtraBold
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Explora gatos reales con scroll infinito y modo offline.",
+                    text = stringResource(R.string.app_description),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -193,7 +284,7 @@ private fun HeaderSection(
                 color = if (isOnline) Color(0xFFDFF7E2) else Color(0xFFFFE6E6)
             ) {
                 Text(
-                    text = if (isOnline) "Online" else "Offline",
+                    text = if (isOnline) stringResource(R.string.status_online) else stringResource(R.string.status_offline),
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
@@ -210,21 +301,34 @@ private fun HeaderSection(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        SummaryPill(label = "Gatos", value = catsCount.toString(), modifier = Modifier.weight(1f))
-        SummaryPill(label = "Estado", value = if (isOnline) "API" else "Local", modifier = Modifier.weight(1f))
+        SummaryPill(label = stringResource(R.string.label_gatos), value = catsCount.toString(), modifier = Modifier.weight(1f))
+        SummaryPill(label = stringResource(R.string.label_estado), value = if (isOnline) stringResource(R.string.source_api) else stringResource(R.string.source_local), modifier = Modifier.weight(1f))
     }
 }
 
 @Composable
-private fun SummaryPill(label: String, value: String, modifier: Modifier = Modifier) {
+private fun SummaryPill(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
     Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         modifier = modifier
     ) {
-        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-            Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(text = value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -233,6 +337,8 @@ private fun SummaryPill(label: String, value: String, modifier: Modifier = Modif
 private fun FilterSummary(
     selectedBreed: String?,
     selectedCategory: String?,
+    onBreedClick: () -> Unit,
+    onCategoryClick: () -> Unit,
     onClearFilters: () -> Unit
 ) {
     Card(
@@ -247,32 +353,47 @@ private fun FilterSummary(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Filtros activos",
+                    text = stringResource(R.string.active_filters),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
 
                 TextButton(onClick = onClearFilters) {
-                    Text(text = "Limpiar")
+                    Text(text = stringResource(R.string.clear_filters))
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                FilterPill(label = "Raza", value = selectedBreed ?: "Todas", modifier = Modifier.weight(1f))
-                FilterPill(label = "Categoría", value = selectedCategory ?: "Todas", modifier = Modifier.weight(1f))
+                FilterPill(
+                    label = stringResource(R.string.label_breed),
+                    value = selectedBreed ?: stringResource(R.string.filter_all),
+                    modifier = Modifier.weight(1f),
+                    onClick = onBreedClick
+                )
+                FilterPill(
+                    label = stringResource(R.string.label_category),
+                    value = selectedCategory ?: stringResource(R.string.filter_all),
+                    modifier = Modifier.weight(1f),
+                    onClick = onCategoryClick
+                )
             }
         }
     }
 }
 
 @Composable
-private fun FilterPill(label: String, value: String, modifier: Modifier = Modifier) {
+private fun FilterPill(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
+) {
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.secondaryContainer,
-        modifier = modifier
+        modifier = modifier.clickable { onClick() }
     ) {
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
             Text(
@@ -305,7 +426,7 @@ private fun ErrorBanner(message: String, onRetry: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(onClick = onRetry) {
-                Text(text = "Reintentar")
+                Text(text = stringResource(R.string.retry))
             }
         }
     }
@@ -325,20 +446,20 @@ private fun EmptyState(isOnline: Boolean, onRetry: () -> Unit) {
             Text(text = if (isOnline) "😺" else "📦", style = MaterialTheme.typography.displaySmall)
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = if (isOnline) "No hay gatos para mostrar aún" else "No hay datos guardados localmente",
+                text = if (isOnline) stringResource(R.string.empty_online_title) else stringResource(R.string.empty_offline_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = if (isOnline) "Desliza hacia abajo para cargar más resultados." else "Conéctate a internet una vez para poblar la base local.",
+                text = if (isOnline) stringResource(R.string.empty_online_desc) else stringResource(R.string.empty_offline_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
             Spacer(modifier = Modifier.height(12.dp))
             OutlinedButton(onClick = onRetry) {
-                Text(text = "Cargar gatos")
+                Text(text = stringResource(R.string.load_cats))
             }
         }
     }
@@ -363,7 +484,7 @@ private fun LoadingFooter() {
             ) {
                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Cargando más gatos...", style = MaterialTheme.typography.bodyMedium)
+                Text(text = stringResource(R.string.loading_more), style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
@@ -386,6 +507,7 @@ fun CatCardGrid(cat: Cat, onClick: () -> Unit) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(cat.url)
+                            .crossfade(true)
                             .build(),
                         contentDescription = "Imagen de gato ${cat.id}",
                         modifier = Modifier.fillMaxSize(),
@@ -398,7 +520,7 @@ fun CatCardGrid(cat: Cat, onClick: () -> Unit) {
                             .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = "Sin imagen", style = MaterialTheme.typography.bodyMedium)
+                        Text(text = stringResource(R.string.no_image), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
 
@@ -445,7 +567,7 @@ fun CatCardGrid(cat: Cat, onClick: () -> Unit) {
                         cat.breedId != null && cat.categoryId != null -> "Raza ${cat.breedId} • Cat ${cat.categoryId}"
                         cat.breedId != null -> "Raza ${cat.breedId}"
                         cat.categoryId != null -> "Categoría ${cat.categoryId}"
-                        else -> "Gato disponible"
+                        else -> stringResource(R.string.available_cat)
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -456,3 +578,4 @@ fun CatCardGrid(cat: Cat, onClick: () -> Unit) {
         }
     }
 }
+

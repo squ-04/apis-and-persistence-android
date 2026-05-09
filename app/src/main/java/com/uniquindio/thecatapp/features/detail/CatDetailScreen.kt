@@ -35,9 +35,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.uniquindio.thecatapp.R
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.request.crossfade
 
 @Composable
 fun CatDetailScreen(
@@ -67,14 +70,7 @@ fun CatDetailScreen(
 							detailUrl = detail.url,
 							isFavorite = uiState.isFavorite,
 							isFavLoading = uiState.isFavoriteLoading,
-							onToggleFavorite = {
-								try {
-									val m = viewModel.javaClass.getMethod("toggleFavorite")
-									m.invoke(viewModel)
-								} catch (_: Exception) {
-									// ignore reflection errors
-								}
-							},
+							onToggleFavorite = { viewModel.toggleFavorite() },
 							onBack = onBack
 						)
 						DetailContent(detail = detail)
@@ -102,6 +98,7 @@ private fun HeroImage(
 		AsyncImage(
 			model = ImageRequest.Builder(LocalContext.current)
 				.data(detailUrl)
+				.crossfade(true)
 				.build(),
 			contentDescription = "Imagen del gato",
 			modifier = Modifier.fillMaxSize(),
@@ -191,7 +188,7 @@ private fun DetailContent(detail: com.uniquindio.thecatapp.domain.model.CatImage
 		UrlCard(url = detail.url)
 		Spacer(modifier = Modifier.height(20.dp))
 		Text(
-			text = "Última sincronización local: disponible mientras exista caché",
+			text = stringResource(R.string.detail_sync_info),
 			style = MaterialTheme.typography.bodySmall,
 			color = MaterialTheme.colorScheme.onSurfaceVariant,
 			modifier = Modifier.padding(bottom = 24.dp)
@@ -231,7 +228,7 @@ private fun DetailSheetHeader(detail: com.uniquindio.thecatapp.domain.model.CatI
 					color = if (detail.categoryName != null) Color(0xFFDDF7E6) else MaterialTheme.colorScheme.surfaceVariant
 				) {
 					Text(
-						text = if (detail.categoryName != null) "Conectado" else "Sin categoría",
+						text = if (detail.categoryName != null) stringResource(R.string.status_online) else stringResource(R.string.status_offline),
 						modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
 						style = MaterialTheme.typography.labelLarge,
 						fontWeight = FontWeight.SemiBold,
@@ -267,16 +264,16 @@ private fun InformationCard(detail: com.uniquindio.thecatapp.domain.model.CatIma
 		modifier = Modifier.fillMaxWidth()
 	) {
 		Column(modifier = Modifier.padding(18.dp)) {
-			SectionTitle(text = "Información principal")
+			SectionTitle(text = stringResource(R.string.main_info))
 			Spacer(modifier = Modifier.height(12.dp))
 
-			InfoRow(label = "Raza", value = detail.breedName ?: "No disponible")
+			InfoRow(label = stringResource(R.string.label_breed), value = detail.breedName ?: stringResource(R.string.not_available))
 			DividerSpace()
-			InfoRow(label = "Categoría", value = detail.categoryName ?: "No disponible")
+			InfoRow(label = stringResource(R.string.label_category), value = detail.categoryName ?: stringResource(R.string.not_available))
 			DividerSpace()
-			InfoRow(label = "ID de raza", value = detail.breedId ?: "No disponible")
+			InfoRow(label = "ID de raza", value = detail.breedId ?: stringResource(R.string.not_available))
 			DividerSpace()
-			InfoRow(label = "ID de categoría", value = detail.categoryId?.toString() ?: "No disponible")
+			InfoRow(label = "ID de categoría", value = detail.categoryId?.toString() ?: stringResource(R.string.not_available))
 		}
 	}
 }
@@ -290,14 +287,14 @@ private fun TechnicalCard(detail: com.uniquindio.thecatapp.domain.model.CatImage
 		modifier = Modifier.fillMaxWidth()
 	) {
 		Column(modifier = Modifier.padding(18.dp)) {
-			SectionTitle(text = "Datos técnicos")
+			SectionTitle(text = stringResource(R.string.tech_data))
 			Spacer(modifier = Modifier.height(12.dp))
 			Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-				TechPill(label = "Ancho", value = detail.width?.toString() ?: "—", modifier = Modifier.weight(1f))
-				TechPill(label = "Alto", value = detail.height?.toString() ?: "—", modifier = Modifier.weight(1f))
+				TechPill(label = stringResource(R.string.width), value = detail.width?.toString() ?: "—", modifier = Modifier.weight(1f))
+				TechPill(label = stringResource(R.string.height), value = detail.height?.toString() ?: "—", modifier = Modifier.weight(1f))
 			}
 			Spacer(modifier = Modifier.height(12.dp))
-			InfoRow(label = "MIME", value = detail.mimeType ?: "No disponible")
+			InfoRow(label = "MIME", value = detail.mimeType ?: stringResource(R.string.not_available))
 		}
 	}
 }
@@ -311,7 +308,7 @@ private fun UrlCard(url: String) {
 		modifier = Modifier.fillMaxWidth()
 	) {
 		Column(modifier = Modifier.padding(18.dp)) {
-			SectionTitle(text = "URL de la imagen")
+			SectionTitle(text = stringResource(R.string.image_url))
 			Spacer(modifier = Modifier.height(10.dp))
 			Surface(
 				shape = RoundedCornerShape(18.dp),
@@ -411,14 +408,14 @@ private fun ErrorState(message: String, onRetry: () -> Unit, onBack: () -> Unit)
 			horizontalAlignment = Alignment.CenterHorizontally
 	) {
 		Text(
-			text = message.ifBlank { "No se pudo cargar el detalle" },
+			text = message.ifBlank { stringResource(R.string.error_loading_detail) },
 			color = MaterialTheme.colorScheme.error,
 			style = MaterialTheme.typography.bodyLarge
 		)
 		Spacer(modifier = Modifier.height(16.dp))
 		Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-			OutlinedButton(onClick = onBack) { Text(text = "Volver") }
-			Button(onClick = onRetry) { Text(text = "Reintentar") }
+			OutlinedButton(onClick = onBack) { Text(text = stringResource(R.string.back)) }
+			Button(onClick = onRetry) { Text(text = stringResource(R.string.retry)) }
 		}
 	}
 }
@@ -432,8 +429,8 @@ private fun EmptyState(onBack: () -> Unit) {
 			verticalArrangement = Arrangement.Center,
 			horizontalAlignment = Alignment.CenterHorizontally
 	) {
-		Text(text = "No hay información para mostrar", style = MaterialTheme.typography.titleLarge)
+		Text(text = stringResource(R.string.no_info), style = MaterialTheme.typography.titleLarge)
 		Spacer(modifier = Modifier.height(16.dp))
-		OutlinedButton(onClick = onBack) { Text(text = "Volver") }
+		OutlinedButton(onClick = onBack) { Text(text = stringResource(R.string.back)) }
 	}
 }

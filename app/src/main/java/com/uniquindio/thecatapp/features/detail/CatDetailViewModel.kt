@@ -34,8 +34,8 @@ class CatDetailViewModel @Inject constructor(
 	// Comprobar estado de favorito al iniciar
 	init {
 		viewModelScope.launch {
-			val favId = repository.getFavoriteIdForImage(catId)
-			_uiState.update { it.copy(isFavorite = favId != null, favoriteId = favId) }
+			val isFav = repository.isFavorite(catId)
+			_uiState.update { it.copy(isFavorite = isFav) }
 		}
 	}
 
@@ -72,26 +72,16 @@ class CatDetailViewModel @Inject constructor(
 	}
 
 	fun toggleFavorite() {
-		val currentFavId = _uiState.value.favoriteId
 		viewModelScope.launch {
 			_uiState.update { it.copy(isFavoriteLoading = true) }
-			if (currentFavId == null) {
-				repository.addFavorite(catId)
-					.onSuccess { newFavId ->
-						_uiState.update { it.copy(isFavorite = true, favoriteId = newFavId, isFavoriteLoading = false) }
-					}
-					.onFailure { error ->
-						_uiState.update { it.copy(isFavoriteLoading = false, errorMessage = error.message ?: "No se pudo agregar favorito") }
-					}
-			} else {
-				repository.removeFavorite(currentFavId)
-					.onSuccess {
-						_uiState.update { it.copy(isFavorite = false, favoriteId = null, isFavoriteLoading = false) }
-					}
-					.onFailure { error ->
-						_uiState.update { it.copy(isFavoriteLoading = false, errorMessage = error.message ?: "No se pudo eliminar favorito") }
-					}
-			}
+			repository.toggleFavorite(catId)
+				.onSuccess {
+					val isFav = repository.isFavorite(catId)
+					_uiState.update { it.copy(isFavorite = isFav, isFavoriteLoading = false) }
+				}
+				.onFailure { error ->
+					_uiState.update { it.copy(isFavoriteLoading = false, errorMessage = error.message ?: "Error al actualizar favorito") }
+				}
 		}
 	}
 
@@ -99,6 +89,9 @@ class CatDetailViewModel @Inject constructor(
 		viewModelScope.launch {
 			connectivityObserver.isOnline.collect { online ->
 				_uiState.update { it.copy(isOnline = online) }
+				if (online) {
+					repository.syncFavorites()
+				}
 			}
 		}
 	}

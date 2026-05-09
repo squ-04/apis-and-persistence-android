@@ -55,18 +55,18 @@ class CatRepositoryImpl @Inject constructor(
 				)
 			}
 
-			catImageDao.deletePage(queryKey = queryKey, page = page)
 			if (entities.isNotEmpty()) {
+				catImageDao.deletePage(queryKey = queryKey, page = page)
 				catImageDao.insertAll(entities)
 			}
 
 			entities.map { it.toDomain() }
-		}.recoverCatching { networkError ->
+		}.recoverCatching {
 			val cached = catImageDao.getPage(queryKey = queryKey, page = page)
 			if (cached.isNotEmpty()) {
 				cached.map { it.toDomain() }
 			} else {
-				throw networkError
+				throw Exception("No hay conexión y no existen datos guardados para este filtro.")
 			}
 		}
 	}
@@ -108,17 +108,14 @@ class CatRepositoryImpl @Inject constructor(
 			val now = System.currentTimeMillis()
 			val remote = apiService.getImageById(catId)
 			val entity = remote.toDetailEntityOrNull(updatedAt = now)
-				?: throw IllegalStateException("El detalle de la imagen no contiene datos validos")
+				?: throw IllegalStateException("El detalle no contiene datos válidos")
 
 			catDetailDao.upsert(entity)
 			entity.toDomainImage()
-		}.recoverCatching { networkError ->
+		}.recoverCatching {
 			val cached = catDetailDao.getById(catId)
-			if (cached != null) {
-				cached.toDomainImage()
-			} else {
-				throw networkError
-			}
+			cached?.toDomainImage() 
+				?: throw Exception("No se puede ver el detalle sin conexión si no se ha abierto previamente.")
 		}
 	}
 
@@ -128,36 +125,77 @@ class CatRepositoryImpl @Inject constructor(
 		return "$breedPart|$categoryPart"
 	}
 
-	override suspend fun addFavorite(imageId: String): Result<Int> {
-		return runCatching {
-			val response = apiService.addFavorite(com.uniquindio.thecatapp.data.remote.FavouriteRequestDto(image_id = imageId))
-			val favId = response.id ?: throw IllegalStateException("No se recibió id de favorito")
-			val entity = com.uniquindio.thecatapp.data.local.entity.FavoriteEntity(id = favId, imageId = imageId, createdAt = System.currentTimeMillis())
-			favoriteDao.insert(entity)
-			favId
-		}.recoverCatching { networkError ->
-			val existing = favoriteDao.getByImageId(imageId)
-			if (existing != null) {
-				existing.id
+	override suspend fun toggleFavorite(imageId: String): Result<Unit> {
+		val existing = favoriteDao.getByImageId(imageId)
+
+		return if (existing == null) {
+			// Add favorite
+			runCatching {
+				val response = apiService.addFavorite(com.uniquindio.thecatapp.data.remote.FavouriteRequestDto(image_id = imageId))
+				val favId = response.id ?: throw IllegalStateException("No server ID")
+				favoriteDao.insert(
+					com.uniquindio.thecatapp.data.local.entity.FavoriteEntity(
+						serverId = favId,
+						imageId = imageId,
+						status = com.uniquindio.thecatapp.data.local.entity.FavoriteStatus.SYNCED
+					)
+				)
+				Unit
+			}.recoverCatching {
+				favoriteDao.insert(
+					com.uniquindio.thecatapp.data.local.entity.FavoriteEntity(
+						imageId = imageId,
+						status = com.uniquindio.thecatapp.data.local.entity.FavoriteStatus.PENDING_ADD
+					)
+				)
+				Unit
+			}
+		} else {
+			// Remove favorite
+			val serverId = existing.serverId
+			if (serverId != null) {
+				runCatching {
+					apiService.removeFavorite(serverId)
+					favoriteDao.deleteByLocalId(existing.localId)
+				}.recoverCatching {
+					favoriteDao.insert(existing.copy(status = com.uniquindio.thecatapp.data.local.entity.FavoriteStatus.PENDING_DELETE))
+					Unit
+				}
 			} else {
-				throw networkError
+				// Was only local PENDING_ADD, just delete it
+				favoriteDao.deleteByLocalId(existing.localId)
+				Result.success(Unit)
 			}
 		}
 	}
 
-	override suspend fun removeFavorite(favouriteId: Int): Result<Unit> {
-		return try {
-			apiService.removeFavorite(favouriteId)
-			favoriteDao.deleteById(favouriteId)
-			Result.success(Unit)
-		} catch (_: Exception) {
-			// intentar eliminar localmente aunque falle la red
-			runCatching { favoriteDao.deleteById(favouriteId) }
-			Result.success(Unit)
-		}
+	override suspend fun getFavoriteIdForImage(imageId: String): Int? {
+		return favoriteDao.getByImageId(imageId)?.serverId
 	}
 
-	override suspend fun getFavoriteIdForImage(imageId: String): Int? {
-		return favoriteDao.getByImageId(imageId)?.id
+	override suspend fun isFavorite(imageId: String): Boolean {
+		val fav = favoriteDao.getByImageId(imageId)
+		return fav != null && fav.status != com.uniquindio.thecatapp.data.local.entity.FavoriteStatus.PENDING_DELETE
+	}
+
+	override suspend fun syncFavorites(): Result<Unit> {
+		return runCatching {
+			val pending = favoriteDao.getPendingSync()
+			pending.forEach { fav ->
+				when (fav.status) {
+					com.uniquindio.thecatapp.data.local.entity.FavoriteStatus.PENDING_ADD -> {
+						val response = apiService.addFavorite(com.uniquindio.thecatapp.data.remote.FavouriteRequestDto(image_id = fav.imageId))
+						response.id?.let { favoriteDao.markAsSynced(fav.localId, it) }
+					}
+					com.uniquindio.thecatapp.data.local.entity.FavoriteStatus.PENDING_DELETE -> {
+						fav.serverId?.let {
+							apiService.removeFavorite(it)
+							favoriteDao.deleteByLocalId(fav.localId)
+						}
+					}
+					else -> {}
+				}
+			}
+		}
 	}
 }
