@@ -105,7 +105,11 @@ fun CatListScreen(
             .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        HeaderSection(isOnline = uiState.isOnline, catsCount = uiState.cats.size)
+        HeaderSection(
+            isOnline = uiState.isOnline,
+            isShowingCached = uiState.isShowingCachedData,
+            catsCount = uiState.cats.size
+        )
 
         Spacer(modifier = Modifier.height(14.dp))
 
@@ -142,7 +146,7 @@ fun CatListScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = if (uiState.isOnline) stringResource(R.string.showing_api) else stringResource(R.string.showing_local),
+                    text = if (uiState.isShowingCachedData) stringResource(R.string.showing_local) else stringResource(R.string.showing_api),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -252,6 +256,7 @@ private fun <T> FilterBottomSheet(
 @Composable
 private fun HeaderSection(
     isOnline: Boolean,
+    isShowingCached: Boolean,
     catsCount: Int
 ) {
     Surface(
@@ -302,7 +307,11 @@ private fun HeaderSection(
         verticalAlignment = Alignment.CenterVertically
     ) {
         SummaryPill(label = stringResource(R.string.label_gatos), value = catsCount.toString(), modifier = Modifier.weight(1f))
-        SummaryPill(label = stringResource(R.string.label_estado), value = if (isOnline) stringResource(R.string.source_api) else stringResource(R.string.source_local), modifier = Modifier.weight(1f))
+        SummaryPill(
+            label = stringResource(R.string.label_estado),
+            value = if (isShowingCached) stringResource(R.string.source_local) else stringResource(R.string.source_api),
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 

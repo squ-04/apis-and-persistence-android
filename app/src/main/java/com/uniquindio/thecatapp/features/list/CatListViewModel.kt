@@ -39,17 +39,14 @@ class CatListViewModel @Inject constructor(
             isLoadingMore = true
 
             try {
-                if (reset) {
-                    currentPage = 0
-                    _uiState.update { it.copy(cats = emptyList()) }
-                }
-
+                // No limpiamos la lista inmediatamente para evitar saltos en el contador
                 _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
                 val state = _uiState.value
+                val pageToLoad = if (reset) 0 else currentPage
 
                 repository.getCatImages(
-                    page = currentPage,
+                    page = pageToLoad,
                     limit = limit,
                     breedId = state.selectedBreedId,
                     categoryId = state.selectedCategoryId
@@ -58,23 +55,22 @@ class CatListViewModel @Inject constructor(
                         it.copy(
                             cats = if (reset) newCats else it.cats + newCats,
                             isLoading = false,
-                            errorMessage = null
+                            errorMessage = null,
+                            isShowingCachedData = !it.isOnline // Si no hay internet, es cache por definición
                         )
                     }
                     if (newCats.isNotEmpty()) {
-                        currentPage++
+                        if (reset) currentPage = 1 else currentPage++
+                    } else if (reset) {
+                        currentPage = 0
                     }
                 }.onFailure { error ->
-                    // Si ya tenemos gatos cargados, no mostramos el error de red como un banner invasivo
-                    if (_uiState.value.cats.isNotEmpty()) {
-                        _uiState.update { it.copy(isLoading = false) }
-                    } else {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = error.message ?: "Error al cargar gatos"
-                            )
-                        }
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = if (it.cats.isEmpty()) error.message ?: "Error al cargar gatos" else null,
+                            isShowingCachedData = true // Falló la API, estamos viendo cache
+                        )
                     }
                 }
             } finally {
@@ -96,7 +92,22 @@ class CatListViewModel @Inject constructor(
     private fun observeConnection() {
         viewModelScope.launch {
             connectivityObserver.isOnline.collect { online ->
-                _uiState.update { it.copy(isOnline = online) }
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        isOnline = online,
+                        // Si perdemos conexión, es 100% seguro que mostramos local/cache
+                        // Si la recuperamos, no marcamos false hasta que hagamos un load exitoso
+                        isShowingCachedData = if (!online) true else currentState.isShowingCachedData
+                    )
+                }
+
+                // Si recuperamos internet y la lista está vacía o estábamos mostrando caché, forzamos recarga
+                if (online) {
+                    val state = _uiState.value
+                    if (state.cats.isEmpty() || state.isShowingCachedData || state.errorMessage != null) {
+                        loadCats(reset = true)
+                    }
+                }
             }
         }
     }
