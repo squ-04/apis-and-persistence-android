@@ -524,23 +524,7 @@ fun CatCardGrid(cat: Cat, onClick: () -> Unit) {
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(10.dp)
-                        .background(
-                            color = Color.Black.copy(alpha = 0.45f),
-                            shape = RoundedCornerShape(999.dp)
-                        )
-                ) {
-                    Text(
-                        text = "♡",
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                // ...se removió el ícono de corazón en la esquina superior derecha según solicitud...
 
                 if (cat.breedId != null) {
                     Badge(

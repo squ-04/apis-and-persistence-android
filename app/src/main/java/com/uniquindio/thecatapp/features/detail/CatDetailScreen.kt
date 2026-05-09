@@ -133,16 +133,7 @@ private fun HeroImage(
 			}
 		}
 
-		Row(
-			modifier = Modifier
-				.align(Alignment.BottomCenter)
-				.padding(bottom = 16.dp),
-			horizontalArrangement = Arrangement.spacedBy(8.dp)
-		) {
-			IndicatorDot(active = true)
-			IndicatorDot(active = false)
-			IndicatorDot(active = false)
-		}
+		// Se eliminaron los puntos indicadores (no es un carrusel, solo una imagen)
 	}
 }
 
