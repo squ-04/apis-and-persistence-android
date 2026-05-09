@@ -4,6 +4,7 @@ import com.uniquindio.thecatapp.domain.model.Cat
 import com.uniquindio.thecatapp.domain.model.CatBreed
 import com.uniquindio.thecatapp.domain.model.CatCategory
 import com.uniquindio.thecatapp.domain.model.CatImage
+import com.uniquindio.thecatapp.data.local.entity.FavoriteEntity
 
 interface CatRepository {
     suspend fun getCatImages(
@@ -26,11 +27,16 @@ interface CatRepository {
 
     suspend fun getFavoriteIdForImage(imageId: String): Int?
 
-    // Offline-first favorites
-    suspend fun getFavoriteForImage(imageId: String): com.uniquindio.thecatapp.data.local.entity.FavoriteEntity?
+    // Local favorite helpers (support offline flow)
+    suspend fun getFavoriteForImage(imageId: String): FavoriteEntity?
 
     suspend fun addFavoriteOffline(imageId: String): Result<Long>
 
     suspend fun removeFavoriteLocal(localId: Long): Result<Unit>
 
     suspend fun syncPendingFavorites(): Result<Unit>
+
+    // Remove all favorites on the server (best-effort) and clear local table
+    suspend fun clearAllFavorites(): Result<Unit>
+
+}

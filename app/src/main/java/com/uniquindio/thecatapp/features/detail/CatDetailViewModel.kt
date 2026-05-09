@@ -34,8 +34,15 @@ class CatDetailViewModel @Inject constructor(
 	// Comprobar estado de favorito al iniciar
 	init {
 		viewModelScope.launch {
-			val favId = repository.getFavoriteIdForImage(catId)
-			_uiState.update { it.copy(isFavorite = favId != null, favoriteId = favId) }
+			val favEntity = repository.getFavoriteForImage(catId)
+			_uiState.update {
+				it.copy(
+					isFavorite = favEntity?.status?.let { s -> s != "DELETED" } == true,
+					favoriteLocalId = favEntity?.localId,
+					favoriteServerId = favEntity?.id,
+					favoriteStatus = favEntity?.status
+				)
+			}
 		}
 	}
 
@@ -72,25 +79,68 @@ class CatDetailViewModel @Inject constructor(
 	}
 
 	fun toggleFavorite() {
-		val currentFavId = _uiState.value.favoriteId
+		val state = _uiState.value
 		viewModelScope.launch {
 			_uiState.update { it.copy(isFavoriteLoading = true) }
-			if (currentFavId == null) {
-				repository.addFavorite(catId)
-					.onSuccess { newFavId ->
-						_uiState.update { it.copy(isFavorite = true, favoriteId = newFavId, isFavoriteLoading = false) }
-					}
-					.onFailure { error ->
-						_uiState.update { it.copy(isFavoriteLoading = false, errorMessage = error.message ?: "No se pudo agregar favorito") }
-					}
+
+			// If currently not favorite -> add
+			if (!state.isFavorite) {
+				if (state.isOnline) {
+					repository.addFavorite(catId)
+						.onSuccess { newFavId ->
+							// ensure local record is marked synced
+							val favEntity = repository.getFavoriteForImage(catId)
+							_uiState.update {
+								it.copy(
+									isFavorite = true,
+									favoriteServerId = newFavId,
+									favoriteLocalId = favEntity?.localId,
+									favoriteStatus = "SYNCED",
+									isFavoriteLoading = false
+								)
+							}
+						}
+						.onFailure { error ->
+							_uiState.update { it.copy(isFavoriteLoading = false, errorMessage = error.message ?: "No se pudo agregar favorito") }
+						}
+				} else {
+					// offline: add pending local favorite
+					repository.addFavoriteOffline(catId)
+						.onSuccess { localId ->
+							_uiState.update { it.copy(isFavorite = true, favoriteLocalId = localId, favoriteServerId = null, favoriteStatus = "PENDING_ADD", isFavoriteLoading = false) }
+						}
+						.onFailure { error ->
+							_uiState.update { it.copy(isFavoriteLoading = false, errorMessage = error.message ?: "No se pudo agregar favorito localmente") }
+						}
+				}
 			} else {
-				repository.removeFavorite(currentFavId)
-					.onSuccess {
-						_uiState.update { it.copy(isFavorite = false, favoriteId = null, isFavoriteLoading = false) }
-					}
-					.onFailure { error ->
-						_uiState.update { it.copy(isFavoriteLoading = false, errorMessage = error.message ?: "No se pudo eliminar favorito") }
-					}
+				// currently favorite -> remove
+				val localId = state.favoriteLocalId
+				val serverId = state.favoriteServerId
+
+				if (state.isOnline && serverId != null) {
+					repository.removeFavorite(serverId)
+						.onSuccess {
+							// update local state: mark deleted
+							val favEntity = repository.getFavoriteForImage(catId)
+							_uiState.update { it.copy(isFavorite = false, favoriteLocalId = favEntity?.localId, favoriteServerId = favEntity?.id, favoriteStatus = favEntity?.status, isFavoriteLoading = false) }
+						}
+						.onFailure { error ->
+							_uiState.update { it.copy(isFavoriteLoading = false, errorMessage = error.message ?: "No se pudo eliminar favorito") }
+						}
+				} else if (localId != null) {
+					// offline removal of local record
+					repository.removeFavoriteLocal(localId)
+						.onSuccess {
+							_uiState.update { it.copy(isFavorite = false, favoriteStatus = "PENDING_DELETE", isFavoriteLoading = false) }
+						}
+						.onFailure { error ->
+							_uiState.update { it.copy(isFavoriteLoading = false, errorMessage = error.message ?: "No se pudo marcar favorito para eliminar") }
+						}
+				} else {
+					// fallback: mark not favorite locally
+					_uiState.update { it.copy(isFavorite = false, favoriteLocalId = null, favoriteServerId = null, favoriteStatus = null, isFavoriteLoading = false) }
+				}
 			}
 		}
 	}
@@ -99,6 +149,12 @@ class CatDetailViewModel @Inject constructor(
 		viewModelScope.launch {
 			connectivityObserver.isOnline.collect { online ->
 				_uiState.update { it.copy(isOnline = online) }
+				if (online) {
+					// try to sync any pending favorites when back online
+					launch {
+						repository.syncPendingFavorites()
+					}
+				}
 			}
 		}
 	}

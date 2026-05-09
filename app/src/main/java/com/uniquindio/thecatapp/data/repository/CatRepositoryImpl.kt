@@ -132,13 +132,27 @@ class CatRepositoryImpl @Inject constructor(
 		return runCatching {
 			val response = apiService.addFavorite(com.uniquindio.thecatapp.data.remote.FavouriteRequestDto(image_id = imageId))
 			val favId = response.id ?: throw IllegalStateException("No se recibió id de favorito")
-			val entity = com.uniquindio.thecatapp.data.local.entity.FavoriteEntity(id = favId, imageId = imageId, createdAt = System.currentTimeMillis())
-			favoriteDao.insert(entity)
-			favId
-		}.recoverCatching { networkError ->
+			val now = System.currentTimeMillis()
 			val existing = favoriteDao.getByImageId(imageId)
 			if (existing != null) {
-				existing.id
+				// update existing local record with server id and mark as SYNCED
+				favoriteDao.updateServerIdAndStatus(existing.localId, favId, "SYNCED", now)
+			} else {
+				val entity = com.uniquindio.thecatapp.data.local.entity.FavoriteEntity(
+					id = favId,
+					imageId = imageId,
+					status = "SYNCED",
+					createdAt = now,
+					updatedAt = now
+				)
+				favoriteDao.insert(entity)
+			}
+			favId
+		}.recoverCatching { networkError ->
+			// if offline or network error, return existing server id if present, otherwise propagate
+			val existing = favoriteDao.getByImageId(imageId)
+			if (existing != null) {
+				existing.id ?: throw networkError
 			} else {
 				throw networkError
 			}
@@ -148,16 +162,113 @@ class CatRepositoryImpl @Inject constructor(
 	override suspend fun removeFavorite(favouriteId: Int): Result<Unit> {
 		return try {
 			apiService.removeFavorite(favouriteId)
-			favoriteDao.deleteById(favouriteId)
+			// mark as DELETED in local DB (keep record)
+			val now = System.currentTimeMillis()
+			runCatching { favoriteDao.updateStatusByServerId(favouriteId, "DELETED", now) }
 			Result.success(Unit)
 		} catch (_: Exception) {
-			// intentar eliminar localmente aunque falle la red
-			runCatching { favoriteDao.deleteById(favouriteId) }
+			// network failed: mark any local record with this server id as PENDING_DELETE
+			val now = System.currentTimeMillis()
+			runCatching { favoriteDao.updateStatusByServerId(favouriteId, "PENDING_DELETE", now) }
 			Result.success(Unit)
 		}
 	}
 
 	override suspend fun getFavoriteIdForImage(imageId: String): Int? {
 		return favoriteDao.getByImageId(imageId)?.id
+	}
+
+	override suspend fun getFavoriteForImage(imageId: String): com.uniquindio.thecatapp.data.local.entity.FavoriteEntity? {
+		return favoriteDao.getByImageId(imageId)
+	}
+
+	override suspend fun addFavoriteOffline(imageId: String): Result<Long> {
+		return runCatching {
+			val now = System.currentTimeMillis()
+			val existing = favoriteDao.getByImageId(imageId)
+			if (existing != null) {
+				// If there is an existing record, avoid inserting duplicates.
+				// If it was deleted or pending delete, mark it as pending add so it will be synced.
+				when (existing.status) {
+					"PENDING_ADD", "SYNCED" -> {
+						// already pending or synced -> return existing local id
+						existing.localId
+					}
+					else -> {
+						// PENDING_DELETE, DELETED, or unknown -> mark as PENDING_ADD
+						favoriteDao.updateStatus(existing.localId, "PENDING_ADD", now)
+						existing.localId
+					}
+				}
+			} else {
+				val entity = com.uniquindio.thecatapp.data.local.entity.FavoriteEntity(
+					imageId = imageId,
+					status = "PENDING_ADD",
+					createdAt = now,
+					updatedAt = now
+				)
+				favoriteDao.insert(entity)
+			}
+		}
+	}
+
+	override suspend fun removeFavoriteLocal(localId: Long): Result<Unit> {
+		return runCatching {
+			val now = System.currentTimeMillis()
+			favoriteDao.updateStatus(localId, "PENDING_DELETE", now)
+		}
+	}
+
+	override suspend fun syncPendingFavorites(): Result<Unit> {
+		return runCatching {
+			val pending = favoriteDao.getPending()
+			for (item in pending) {
+				when (item.status) {
+					"PENDING_ADD" -> {
+						try {
+							val resp = apiService.addFavorite(com.uniquindio.thecatapp.data.remote.FavouriteRequestDto(image_id = item.imageId))
+							val serverId = resp.id ?: continue
+							favoriteDao.updateServerIdAndStatus(item.localId, serverId, "SYNCED", System.currentTimeMillis())
+						} catch (_: Exception) {
+							// keep pending
+						}
+					}
+					"PENDING_DELETE" -> {
+						if (item.id != null) {
+							try {
+								apiService.removeFavorite(item.id)
+								favoriteDao.updateStatus(item.localId, "DELETED", System.currentTimeMillis())
+							} catch (_: Exception) {
+								// keep pending delete
+							}
+						} else {
+							// no server id yet, simply mark as DELETED
+							favoriteDao.updateStatus(item.localId, "DELETED", System.currentTimeMillis())
+						}
+					}
+					else -> {
+						// unknown status - ignore
+					}
+				}
+			}
+		}
+
+					override suspend fun clearAllFavorites(): Result<Unit> {
+						return runCatching {
+							val all = favoriteDao.getAll()
+							for (item in all) {
+								try {
+									// if we have a server id, attempt delete on server
+									if (item.id != null) {
+										apiService.removeFavorite(item.id)
+									}
+								} catch (_: Exception) {
+									// ignore individual failures - best effort
+								}
+							}
+							// now clear local table entirely
+							favoriteDao.deleteAll()
+						}
+					}
 	}
 }

@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
+import android.util.Log
 import coil3.request.ImageRequest
 
 @Composable
@@ -63,18 +64,15 @@ fun CatDetailScreen(
 							.fillMaxSize()
 							.verticalScroll(scrollState)
 					) {
-						HeroImage(
-							detailUrl = detail.url,
-							isFavorite = uiState.isFavorite,
-							isFavLoading = uiState.isFavoriteLoading,
-							onToggleFavorite = {
-								try {
-									val m = viewModel.javaClass.getMethod("toggleFavorite")
-									m.invoke(viewModel)
-								} catch (_: Exception) {
-									// ignore reflection errors
-								}
-							},
+												HeroImage(
+													detailUrl = detail.url,
+													isFavorite = uiState.isFavorite,
+													isFavLoading = uiState.isFavoriteLoading,
+													onToggleFavorite = {
+														// Print ids to log for debugging: image id from detail and favorite ids from UI state
+														Log.d("CatDetail", "clicked favorite - imageId=${detail.id}, favoriteServerId=${uiState.favoriteServerId}, favoriteLocalId=${uiState.favoriteLocalId}")
+														viewModel.toggleFavorite()
+													},
 							onBack = onBack
 						)
 						DetailContent(detail = detail)

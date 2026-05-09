@@ -13,7 +13,7 @@ import com.uniquindio.thecatapp.data.local.entity.CategoryEntity
 
 @Database(
 	entities = [CatImageEntity::class, CatDetailEntity::class, BreedEntity::class, CategoryEntity::class, com.uniquindio.thecatapp.data.local.entity.FavoriteEntity::class],
-	version = 3,
+	version = 4,
 	exportSchema = false
 )
 abstract class CatDatabase : RoomDatabase() {
