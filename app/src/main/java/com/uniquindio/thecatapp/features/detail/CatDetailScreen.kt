@@ -198,7 +198,6 @@ private fun DetailSheetHeader(detail: com.uniquindio.thecatapp.domain.model.CatI
 		Column(modifier = Modifier.padding(18.dp)) {
 			Row(
 				modifier = Modifier.fillMaxWidth(),
-				horizontalArrangement = Arrangement.SpaceBetween,
 				verticalAlignment = Alignment.CenterVertically
 			) {
 				Surface(
@@ -211,19 +210,6 @@ private fun DetailSheetHeader(detail: com.uniquindio.thecatapp.domain.model.CatI
 						style = MaterialTheme.typography.labelLarge,
 						fontWeight = FontWeight.Bold,
 						color = MaterialTheme.colorScheme.onPrimaryContainer
-					)
-				}
-
-				Surface(
-					shape = RoundedCornerShape(999.dp),
-					color = if (detail.categoryName != null) Color(0xFFDDF7E6) else MaterialTheme.colorScheme.surfaceVariant
-				) {
-					Text(
-						text = if (detail.categoryName != null) stringResource(R.string.status_online) else stringResource(R.string.status_offline),
-						modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-						style = MaterialTheme.typography.labelLarge,
-						fontWeight = FontWeight.SemiBold,
-						color = if (detail.categoryName != null) Color(0xFF0B7A2A) else MaterialTheme.colorScheme.onSurfaceVariant
 					)
 				}
 			}

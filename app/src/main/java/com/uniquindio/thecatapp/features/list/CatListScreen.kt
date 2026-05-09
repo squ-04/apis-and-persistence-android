@@ -44,7 +44,9 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 
-@OptIn(ExperimentalMaterial3Api::class)
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.layout.IntrinsicSize
+
 @Composable
 fun CatListScreen(
     modifier: Modifier = Modifier,
